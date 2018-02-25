@@ -19,13 +19,13 @@ type
     FPath : string;
     FGoUp : Boolean;
   public
-    constructor Create(vTab : TSQLite3VTab);
+    constructor Create(vTab : TSQLite3VTab);override;
     destructor Destroy; override;
     function SearchPath(aPath : string) : Boolean;
-    function Search(Prepared : TSQLVirtualTablePrepared) : Boolean;
-    function Column(Index : Integer;var Res : TSQLVar) : Boolean;
-    function Next : Boolean;
-    function Eof : Boolean;
+    function Search(Prepared : TSQLVirtualTablePrepared) : Boolean;override;
+    function Column(Index : Integer;var Res : TSQLVar) : Boolean;override;
+    function Next : Boolean;override;
+    function Eof : Boolean;override;
   end;
 
   TFSCursorClass = class of TFSCursor;
@@ -37,6 +37,7 @@ type
     function Prepare(Prepared: TSQLVirtualTablePrepared): Boolean; override;
     function GetName: string; override;
     function CursorClass: TSQLiteVirtualTableCursorClass; override;
+    function GenerateStructure: string; override;
   end;
 
 implementation
@@ -59,6 +60,21 @@ end;
 function TFSTable.CursorClass: TSQLiteVirtualTableCursorClass;
 begin
   Result := TFSCursor;
+end;
+
+function TFSTable.GenerateStructure: string;
+const
+  Structure = 'create table fs ('+
+  'name  text,'+
+  'path  text,'+
+  'isdir int,'+
+  'size  int,'+
+  'mtime int,'+
+  'ctime int,'+
+  'atime int'+
+  ')';
+begin
+  Result := Structure;
 end;
 
 { TFSCursor }
@@ -171,18 +187,6 @@ function TFSCursor.Eof: Boolean;
 begin
   result := FEof;
 end;
-
-
-const
-  Structure = 'create table fs ('+
-  'name  text,'+
-  'path  text,'+
-  'isdir int,'+
-  'size  int,'+
-  'mtime int,'+
-  'ctime int,'+
-  'atime int'+
-  ')';
 
 end.
 
