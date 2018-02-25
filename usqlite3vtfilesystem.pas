@@ -48,8 +48,18 @@ var
 { TFSTable }
 
 function TFSTable.Prepare(Prepared: TSQLVirtualTablePrepared): Boolean;
+var
+  i: Integer;
 begin
+  for i := 0 to Prepared.WhereCount-1 do
+    begin
+      Prepared.Where[i].Value.VType := ftNull;
+      with Prepared.Where[i] do
+        begin
 
+        end;
+    end;
+  Result := True;
 end;
 
 function TFSTable.GetName: string;
@@ -156,7 +166,7 @@ label retry;
 begin
   Result := True;
 retry:
-  if (FSearchRecs[length(FSearchRecs)-1].Attr and faDirectory = faDirectory) and( not ((FSearchRecs[length(FSearchRecs)-1].Name='.') or (FSearchRecs[length(FSearchRecs)-1].Name='..')))  then
+  if (not Feof) and (FSearchRecs[length(FSearchRecs)-1].Attr and faDirectory = faDirectory) and( not ((FSearchRecs[length(FSearchRecs)-1].Name='.') or (FSearchRecs[length(FSearchRecs)-1].Name='..')))  then
     SearchPath(IncludeTrailingBackslash(IncludeTrailingBackslash(FPath)+FSearchRecs[length(FSearchRecs)-1].Name));
   if FEof and (length(FSearchRecs)>0) then
     begin
@@ -180,7 +190,7 @@ retry:
   if FEof and (length(FSearchRecs)>0) then
     goto retry;
   if length(FSearchRecs)>0 then
-    debugln(IncludeTrailingBackslash(FPath)+FSearchRecs[length(FSearchRecs)-1].Name)
+    debugln(IntToStr(length(FSearchRecs))+':'+IncludeTrailingBackslash(FPath)+FSearchRecs[length(FSearchRecs)-1].Name)
 end;
 
 function TFSCursor.Eof: Boolean;
