@@ -56,14 +56,19 @@ begin
   for i := 0 to Prepared.WhereCount-1 do
     begin
       aPrep := @Prepared.Where[i];
-      if (aPrep^.Column>=0) and (aPrep^.Column<2)
-      and (
-         (aPrep^.Operation = soLike)
+      if (aPrep^.Column>0) and (aPrep^.Column<2) then
+      if (aPrep^.Operation = soLike)
       or (aPrep^.Operation = soEqualTo)
       or (aPrep^.Operation = soBeginWith)
       or (aPrep^.Operation = soContains)
-      ) then //we can filter only in Name and Path all other Filters should be done by sqlite
-        aPrep^.Value.VType := ftNull;
+      then //we can filter only in Name and Path all other Filters should be done by sqlite
+        begin
+          aPrep^.Value.VType := ftNull;
+          if aPrep^.Column=1 then
+            Prepared.EstimatedCost:=costSecondaryIndex
+          else if aPrep^.Column=0 then
+            Prepared.EstimatedCost:=costScanWhere;
+        end;
     end;
   Result := True;
 end;
@@ -86,6 +91,7 @@ const
   'isdir int,'+
   'size  int,'+
   'time  date'+
+  'content  blob'+
   ')';
 begin
   Result := Structure;
@@ -118,11 +124,12 @@ function TFSCursor.SearchPath(aPath, aType: string): Boolean;
 var
   FSr: TSearchRec;
 begin
-  FPath:=aPath;
-  FEof := FindFirst(StringReplace(IncludeTrailingSlash(FPath),'/',DirectorySeparator,[rfReplaceAll])+aType, faAnyFile and faDirectory,FSr) <> 0;
+  FPath:=IncludeTrailingSlash(aPath);
+  FEof := FindFirst(StringReplace(FPath,'/',DirectorySeparator,[rfReplaceAll])+aType, faAnyFile and faDirectory,FSr) <> 0;
   setlength(FSearchRecs,length(FSearchRecs)+1);
   FSearchRecs[Length(FSearchRecs)-1] := Fsr;
   if (not FEof) and (FSR.Name='.') then Result := Next;
+  if (not FEof) and (FSR.Name='..') then Result := Next;
 end;
 
 function TFSCursor.Search(Prepared: TSQLVirtualTablePrepared): Boolean;
@@ -141,16 +148,7 @@ begin
   for i := 0 to Prepared.WhereCount-1 do
     begin
       aPrep := @Prepared.Where[i];
-      if aPrep.Column = 0 then //name
-        begin
-          case aPrep.Operation of
-          soEqualTo:FType:=aPrep.Value.VText;
-          soBeginWith:FType:=aPrep.Value.VText+'*';
-          soContains:FType:='*'+aPrep.Value.VText+'*';
-          soLike:FType:=StringReplace(aPrep.Value.VText,'%','*',[rfReplaceAll]);
-          end;
-        end
-      else if aPrep.Column = 1 then //path
+      if aPrep.Column = 1 then //path
         begin
           case aPrep.Operation of
           soEqualTo:FPath:=aPrep.Value.VText;
@@ -222,7 +220,6 @@ retry:
     end
   else
     feof := FindNext(FSearchRecs[length(FSearchRecs)-1]) <> 0;
-  if (not FEof) and ((FSearchRecs[length(FSearchRecs)-1].Name='.') or (FSearchRecs[length(FSearchRecs)-1].Name='..')) then goto retry;
   if FEof and (length(FSearchRecs)>0) then
     goto retry;
   if length(FSearchRecs)>0 then
