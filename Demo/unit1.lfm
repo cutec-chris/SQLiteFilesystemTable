@@ -1,0 +1,110 @@
+object Form1: TForm1
+  Left = 428
+  Height = 378
+  Top = 292
+  Width = 757
+  Caption = 'Form1'
+  ClientHeight = 378
+  ClientWidth = 757
+  OnCreate = FormCreate
+  LCLVersion = '1.4.4.0'
+  object DBGrid1: TDBGrid
+    Left = 16
+    Height = 312
+    Top = 48
+    Width = 728
+    Anchors = [akTop, akLeft, akRight, akBottom]
+    AutoEdit = False
+    Color = clWindow
+    Columns = <>
+    DataSource = DataSource1
+    Options = [dgTitles, dgIndicator, dgColumnResize, dgColumnMove, dgColLines, dgRowLines, dgTabs, dgRowSelect, dgAlwaysShowSelection, dgConfirmDelete, dgCancelOnExit]
+    ReadOnly = True
+    TabOrder = 0
+    TitleStyle = tsNative
+  end
+  object Button1: TButton
+    Left = 16
+    Height = 25
+    Top = 6
+    Width = 75
+    Caption = 'Button1'
+    OnClick = Button1Click
+    TabOrder = 1
+  end
+  object Button2: TButton
+    Left = 120
+    Height = 25
+    Top = 6
+    Width = 75
+    Caption = 'Button2'
+    OnClick = Button2Click
+    TabOrder = 2
+  end
+  object SQLQuery1: TSQLQuery
+    PacketRecords = 1
+    IndexName = 'DEFAULT_ORDER'
+    FieldDefs = <    
+      item
+        Name = 'type'
+        DataType = ftMemo
+        Precision = -1
+        Size = 0
+      end    
+      item
+        Name = 'name'
+        DataType = ftMemo
+        Precision = -1
+        Size = 0
+      end    
+      item
+        Name = 'tbl_name'
+        DataType = ftMemo
+        Precision = -1
+        Size = 0
+      end    
+      item
+        Name = 'rootpage'
+        DataType = ftInteger
+        Precision = -1
+        Size = 0
+      end    
+      item
+        Name = 'sql'
+        DataType = ftMemo
+        Precision = -1
+        Size = 0
+      end>
+    Active = True
+    Database = SQLite3Connection1
+    Transaction = SQLTransaction1
+    SQL.Strings = (
+      'select * from sqlite_master;'
+    )
+    Params = <>
+    left = 56
+    top = 88
+  end
+  object SQLite3Connection1: TSQLite3Connection
+    Connected = True
+    LoginPrompt = False
+    DatabaseName = ':memory:'
+    KeepConnection = False
+    Transaction = SQLTransaction1
+    LogEvents = []
+    Options = []
+    left = 56
+    top = 32
+  end
+  object SQLTransaction1: TSQLTransaction
+    Active = True
+    Database = SQLite3Connection1
+    left = 128
+    top = 88
+  end
+  object DataSource1: TDataSource
+    DataSet = SQLQuery1
+    left = 128
+    top = 32
+  end
+end

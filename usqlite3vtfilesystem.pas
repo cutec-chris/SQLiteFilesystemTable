@@ -107,7 +107,7 @@ end;
 
 function TFSCursor.SearchPath(aPath: string): Boolean;
 var
-  FSr: TRawByteSearchRec;
+  FSr: TSearchRec;
 begin
   FPath:=aPath;
   FEof := FindFirst(StringReplace(FPath,'/',DirectorySeparator,[rfReplaceAll]) +'*', {faAnyFile and }faDirectory,FSr) <> 0;
