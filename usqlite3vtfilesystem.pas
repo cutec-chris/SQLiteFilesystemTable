@@ -18,10 +18,11 @@ type
     FEof: Boolean;
     FPath : string;
     FGoUp : Boolean;
+    FType: String;
   public
     constructor Create(vTab : TSQLite3VTab);override;
     destructor Destroy; override;
-    function SearchPath(aPath : string) : Boolean;
+    function SearchPath(aPath,aType : string) : Boolean;
     function Search(Prepared : TSQLVirtualTablePrepared) : Boolean;override;
     function Column(Index : Integer;var Res : TSQLVar) : Boolean;override;
     function Next : Boolean;override;
@@ -34,7 +35,7 @@ type
 
   TFSTable = class(TSQLiteVirtualTable)
   public
-    function Prepare(Prepared: TSQLVirtualTablePrepared): Boolean; override;
+    function Prepare(var Prepared: TSQLVirtualTablePrepared): Boolean; override;
     function GetName: string; override;
     function CursorClass: TSQLiteVirtualTableCursorClass; override;
     function GenerateStructure: string; override;
@@ -47,17 +48,22 @@ var
 
 { TFSTable }
 
-function TFSTable.Prepare(Prepared: TSQLVirtualTablePrepared): Boolean;
+function TFSTable.Prepare(var Prepared: TSQLVirtualTablePrepared): Boolean;
 var
   i: Integer;
+  aPrep: PSQLVirtualTablePreparedConstraint;
 begin
   for i := 0 to Prepared.WhereCount-1 do
     begin
-      Prepared.Where[i].Value.VType := ftNull;
-      with Prepared.Where[i] do
-        begin
-
-        end;
+      aPrep := @Prepared.Where[i];
+      if (aPrep^.Column>=0) and (aPrep^.Column<2)
+      and (
+         (aPrep^.Operation = soLike)
+      or (aPrep^.Operation = soEqualTo)
+      or (aPrep^.Operation = soBeginWith)
+      or (aPrep^.Operation = soContains)
+      ) then //we can filter only in Name and Path all other Filters should be done by sqlite
+        aPrep^.Value.VType := ftNull;
     end;
   Result := True;
 end;
@@ -79,9 +85,7 @@ const
   'path  text,'+
   'isdir int,'+
   'size  int,'+
-  'mtime int,'+
-  'ctime int,'+
-  'atime int'+
+  'time  date'+
   ')';
 begin
   Result := Structure;
@@ -110,18 +114,22 @@ begin
   inherited Destroy;
 end;
 
-function TFSCursor.SearchPath(aPath: string): Boolean;
+function TFSCursor.SearchPath(aPath, aType: string): Boolean;
 var
   FSr: TSearchRec;
 begin
   FPath:=aPath;
-  FEof := FindFirst(StringReplace(FPath,'/',DirectorySeparator,[rfReplaceAll]) +'*', {faAnyFile and }faDirectory,FSr) <> 0;
+  FEof := FindFirst(StringReplace(IncludeTrailingSlash(FPath),'/',DirectorySeparator,[rfReplaceAll])+aType, faAnyFile and faDirectory,FSr) <> 0;
   setlength(FSearchRecs,length(FSearchRecs)+1);
   FSearchRecs[Length(FSearchRecs)-1] := Fsr;
   if (not FEof) and (FSR.Name='.') then Result := Next;
 end;
 
 function TFSCursor.Search(Prepared: TSQLVirtualTablePrepared): Boolean;
+var
+  i: Integer;
+  aPrep: PSQLVirtualTablePreparedConstraint;
+  tmp: PUTF8Char;
 begin
   Result := True;
   {$ifdef Windows}
@@ -129,7 +137,30 @@ begin
   {$else}
   FPath:='/';
   {$endif}
-  SearchPath(FPath);
+  FType := '*';
+  for i := 0 to Prepared.WhereCount-1 do
+    begin
+      aPrep := @Prepared.Where[i];
+      if aPrep.Column = 0 then //name
+        begin
+          case aPrep.Operation of
+          soEqualTo:FType:=aPrep.Value.VText;
+          soBeginWith:FType:=aPrep.Value.VText+'*';
+          soContains:FType:='*'+aPrep.Value.VText+'*';
+          soLike:FType:=StringReplace(aPrep.Value.VText,'%','*',[rfReplaceAll]);
+          end;
+        end
+      else if aPrep.Column = 1 then //path
+        begin
+          case aPrep.Operation of
+          soEqualTo:FPath:=aPrep.Value.VText;
+          soBeginWith:FPath:=aPrep.Value.VText+'*';
+          soContains:FPath:='*'+aPrep.Value.VText+'*';
+          soLike:FPath:=StringReplace(aPrep.Value.VText,'%','*',[rfReplaceAll]);
+          end;
+        end;
+    end;
+  SearchPath(StringReplace(FPath,DirectorySeparator,'/',[rfReplaceAll]),FType);
 end;
 
 function TFSCursor.Column(Index: Integer; var Res: TSQLVar): Boolean;
@@ -157,8 +188,8 @@ begin
       Res.VInt64 := FSearchRecs[length(FSearchRecs)-1].Size;//size
     end;
   4:begin
-      Res.VType:=ftInt64;
-      Res.VInt64:=FSearchRecs[length(FSearchRecs)-1].Time; //mtime
+      Res.VType:=ftDate;
+      Res.VDateTime:=FileDateToDateTime(FSearchRecs[length(FSearchRecs)-1].Time); //mtime
     end;
   //ctime
   //atime
@@ -172,7 +203,7 @@ begin
   Result := True;
 retry:
   if (not Feof) and (FSearchRecs[length(FSearchRecs)-1].Attr and faDirectory = faDirectory) and( not ((FSearchRecs[length(FSearchRecs)-1].Name='.') or (FSearchRecs[length(FSearchRecs)-1].Name='..')))  then
-    SearchPath(IncludeTrailingSlash(IncludeTrailingSlash(FPath)+FSearchRecs[length(FSearchRecs)-1].Name));
+    SearchPath(IncludeTrailingSlash(IncludeTrailingSlash(FPath)+FSearchRecs[length(FSearchRecs)-1].Name),FType);
   if FEof and (length(FSearchRecs)>0) then
     begin
       if pos('/',FPath)>0 then
