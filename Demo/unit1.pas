@@ -55,7 +55,7 @@ end;
 
 procedure TForm1.Button2Click(Sender: TObject);
 begin
-  SQLQuery1.SQL.Text:='select * from test';
+  SQLQuery1.SQL.Text:='select cast(name as varchar),cast(path as varchar),size from test';
   SQLQuery1.Open;
 end;
 

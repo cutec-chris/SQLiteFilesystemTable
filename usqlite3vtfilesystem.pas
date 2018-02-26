@@ -87,6 +87,11 @@ begin
   Result := Structure;
 end;
 
+function IncludeTrailingSlash(s : string) : string;
+begin
+  Result := stringreplace(IncludeTrailingPathDelimiter(s),DirectorySeparator,'/',[rfReplaceAll]);
+end;
+
 { TFSCursor }
 
 constructor TFSCursor.Create(vTab: TSQLite3VTab);
@@ -120,7 +125,7 @@ function TFSCursor.Search(Prepared: TSQLVirtualTablePrepared): Boolean;
 begin
   Result := True;
   {$ifdef Windows}
-  FPath:='c:';
+  FPath:='c:/';
   {$else}
   FPath:='/';
   {$endif}
@@ -167,7 +172,7 @@ begin
   Result := True;
 retry:
   if (not Feof) and (FSearchRecs[length(FSearchRecs)-1].Attr and faDirectory = faDirectory) and( not ((FSearchRecs[length(FSearchRecs)-1].Name='.') or (FSearchRecs[length(FSearchRecs)-1].Name='..')))  then
-    SearchPath(IncludeTrailingBackslash(IncludeTrailingBackslash(FPath)+FSearchRecs[length(FSearchRecs)-1].Name));
+    SearchPath(IncludeTrailingSlash(IncludeTrailingSlash(FPath)+FSearchRecs[length(FSearchRecs)-1].Name));
   if FEof and (length(FSearchRecs)>0) then
     begin
       if pos('/',FPath)>0 then
@@ -190,7 +195,7 @@ retry:
   if FEof and (length(FSearchRecs)>0) then
     goto retry;
   if length(FSearchRecs)>0 then
-    debugln(IntToStr(length(FSearchRecs))+':'+IncludeTrailingBackslash(FPath)+FSearchRecs[length(FSearchRecs)-1].Name)
+    debugln(IntToStr(length(FSearchRecs))+':'+IncludeTrailingSlash(FPath)+FSearchRecs[length(FSearchRecs)-1].Name)
 end;
 
 function TFSCursor.Eof: Boolean;
