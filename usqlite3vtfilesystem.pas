@@ -157,6 +157,8 @@ begin
 end;
 
 function TFSCursor.Column(Index: Integer; var Res: TSQLVar): Boolean;
+var
+  aFile: String;
 begin
   Res.VType:=ftNull;
   case Index of
@@ -185,12 +187,13 @@ begin
       Res.VDateTime:=FileDateToDateTime(FSearchRecs[length(FSearchRecs)-1].Time); //mtime
     end;
   5:begin
-      if FileExists(FPath+FSearchRecs[length(FSearchRecs)-1].Name) then
+      aFile := StringReplace(FPath+FSearchRecs[length(FSearchRecs)-1].Name,'/',DirectorySeparator,[rfReplaceAll]);
+      if FileExists(aFile) and (not DirectoryExists(aFile)) then
         begin
           FreeAndNil(aMS);
           try
             aMS := TMemoryStream.Create;
-            aMS.LoadFromFile(FPath+FSearchRecs[length(FSearchRecs)-1].Name);
+            aMS.LoadFromFile(aFile);
             Res.VType:=ftBlob;
             Res.VBlob:=aMS.Memory;
             Res.VBlobLen := aMS.Size;
