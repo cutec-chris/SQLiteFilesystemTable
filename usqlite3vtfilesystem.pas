@@ -45,6 +45,7 @@ implementation
 
 var
   fModule: TSQLite3Module;
+  aMS : TMemoryStream;
 
 { TFSTable }
 
@@ -56,7 +57,7 @@ begin
   for i := 0 to Prepared.WhereCount-1 do
     begin
       aPrep := @Prepared.Where[i];
-      if (aPrep^.Column>=0) and (aPrep^.Column<2)
+      if (aPrep^.Column>=1) and (aPrep^.Column<2)
       and (
          (aPrep^.Operation = soLike)
       or (aPrep^.Operation = soEqualTo)
@@ -85,7 +86,8 @@ const
   'path  text,'+
   'isdir int,'+
   'size  int,'+
-  'time  date'+
+  'date  date,'+
+  'content blob'+
   ')';
 begin
   Result := Structure;
@@ -141,25 +143,16 @@ begin
   for i := 0 to Prepared.WhereCount-1 do
     begin
       aPrep := @Prepared.Where[i];
-      if aPrep.Column = 0 then //name
-        begin
-          case aPrep.Operation of
-          soEqualTo:FType:=aPrep.Value.VText;
-          soBeginWith:FType:=aPrep.Value.VText+'*';
-          soContains:FType:='*'+aPrep.Value.VText+'*';
-          soLike:FType:=StringReplace(aPrep.Value.VText,'%','*',[rfReplaceAll]);
-          end;
-        end
-      else if aPrep.Column = 1 then //path
+      if aPrep.Column = 1 then //path
         begin
           case aPrep.Operation of
           soEqualTo:FPath:=aPrep.Value.VText;
           soBeginWith:FPath:=aPrep.Value.VText+'*';
-          soContains:FPath:='*'+aPrep.Value.VText+'*';
-          soLike:FPath:=StringReplace(aPrep.Value.VText,'%','*',[rfReplaceAll]);
+          soLike:FPath:=aPrep.Value.VText;
           end;
         end;
     end;
+  FPath := StringReplace(FPath,'/%','/',[]);
   SearchPath(StringReplace(FPath,DirectorySeparator,'/',[rfReplaceAll]),FType);
 end;
 
@@ -190,6 +183,21 @@ begin
   4:begin
       Res.VType:=ftDate;
       Res.VDateTime:=FileDateToDateTime(FSearchRecs[length(FSearchRecs)-1].Time); //mtime
+    end;
+  5:begin
+      if FileExists(FPath+FSearchRecs[length(FSearchRecs)-1].Name) then
+        begin
+          FreeAndNil(aMS);
+          try
+            aMS := TMemoryStream.Create;
+            aMS.LoadFromFile(FPath+FSearchRecs[length(FSearchRecs)-1].Name);
+            Res.VType:=ftBlob;
+            Res.VBlob:=aMS.Memory;
+            Res.VBlobLen := aMS.Size;
+          except
+            FreeAndNil(aMS);
+          end;
+        end;
     end;
   //ctime
   //atime
